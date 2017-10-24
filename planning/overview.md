@@ -33,3 +33,20 @@ MySQL/MariaDB
 * BASH
 
 ### Items to be tracked
+
+**Work session**
+
+* worker
+* project
+* start time
+* end time
+* brief summary of work accomplished
+* notes with more detail
+
+**Projects**
+
+* has many work sessions & perhaps workers
+
+**Workers**
+
+* has many work sessions & projects
