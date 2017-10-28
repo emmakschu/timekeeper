@@ -2,8 +2,8 @@
 
 CREATE TABLE IF NOT EXISTS `work_shifts` (
 	`id` INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT,
-	`start_time` TIMESTAMP,
-	`end_time` TIMESTAMP,
+	`start_time` DATETIME,
+	`end_time` DATETIME,
 	`employee` VARCHAR(32),
 	`project` INTEGER NOT NULL,
 	`phase` VARCHAR(32),
@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS `work_shifts` (
 CREATE TABLE IF NOT EXISTS `projects` (
 	`id` INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT,
 	`name` VARCHAR(128),
-	`start_date` TIMESTAMP,
-	`end_date` TIMESTAMP,
+	`start_date` DATETIME,
+	`end_date` DATETIME,
 	`comments` VARCHAR(256)
 );
 
