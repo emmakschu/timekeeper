@@ -8,6 +8,17 @@
 #include <time.h>
 #include <stdlib.h>
 
+struct work_shift {
+	int id;
+	char *start_time;
+	char *end_time;
+	char *employee;
+	int project_code;
+	char *phase;
+	char *work_done;
+	char *comments;
+};
+
 void exit_with_error (MYSQL *conn)
 {
 	fprintf (stderr, "%s\n", mysql_error (conn));
@@ -27,9 +38,20 @@ char* remove_newline (char *input)
 	return (input);
 }
 
-int find_curr_shift (MYSQL *conn)
+struct work_shift find_curr_shift (MYSQL *conn)
 {
-	int curr_shift;
+	struct work_shift curr_shift = {
+		.id = 0,
+		.start_time = "0000-00-00 00:00:00",
+		.end_time = "0000-00-00 00:00:00",
+		.employee = " ",
+		.project_code = 0,
+		.phase = " ",
+		.work_done = " ",
+		.comments = " "
+	};
+	char project[32];
+
 	char buff[256];
 
 	int i;
@@ -37,20 +59,21 @@ int find_curr_shift (MYSQL *conn)
 	int num_fields;
 	MYSQL_ROW row;
 
-	snprintf (buff, 255, "SELECT id FROM work_shifts WHERE "
-						 "end_time = NULL ORDER BY id DESC "
-						 "LIMIT 1;");
+	snprintf (buff, 255, "SELECT id,start_time,employee,project, "
+						 "phase FROM work_shifts WHERE "
+						 "end_time = '0000-00-00 00:00:00' "
+						 "ORDER BY id DESC LIMIT 1;");
 
 	if (mysql_query (conn, buff))
 	{
 		exit_with_error (conn);
 	}
-	
+
 	result = mysql_store_result (conn);
 
 	if (result == NULL)
 	{
-		curr_shift = 0;
+		return curr_shift;
 	}
 	else
 	{
@@ -59,7 +82,11 @@ int find_curr_shift (MYSQL *conn)
 		while (row = mysql_fetch_row (result))
 		{
 			for (i = 0; i < num_fields; i++)
-			curr_shift = atoi (row[0]);
+			curr_shift.id = atoi (row[0]);
+			curr_shift.start_time = row[1];
+			curr_shift.employee = row[2];
+			curr_shift.project_code = atoi (row[3]);
+			curr_shift.phase = row[4];
 		}
 
 		mysql_free_result (result);
@@ -71,6 +98,7 @@ int find_curr_shift (MYSQL *conn)
 void start_shift (MYSQL *conn)
 {
     char start_time[80];
+	char end_time[] = "0000-00-00 00:00:00";
 	char employee[32];
 	int project;
 	char phase[32];
@@ -101,10 +129,11 @@ void start_shift (MYSQL *conn)
 	printf ("Project phase: %s\n", phase);
 
 	snprintf (buff, 4095, "INSERT INTO work_shifts "
-				  		  "(start_time, employee, "
-						  "project, phase) VALUES ("
-						  "'%s', '%s', %d, '%s');\n",
+				  		  "(start_time,end_time,employee,"
+						  "project,phase) VALUES ("
+						  "'%s', '%s', '%s', %d, '%s');\n",
 						  start_time,
+						  end_time,
 						  employee,
 						  project,
 						  phase);
@@ -174,9 +203,10 @@ int main (void)
 	char *passwd;
 	char *db;
 
-	int curr_shift;
+	struct work_shift curr_shift;
 
 	char input;
+	char input_garbage;
 
 	conn = mysql_init (NULL);
 	if (conn == NULL)
@@ -205,21 +235,23 @@ int main (void)
 
 	curr_shift = find_curr_shift (conn);
 
-	if (curr_shift == 0)
+	if (curr_shift.id == 0)
 	{
 		printf ("Not currently clocked in\n");
 	}
 	else
 	{
-		printf ("Currently clocked in\n");
+		printf ("Currently clocked in on job code %d\n",
+				curr_shift.project_code);
 	}
 
 	printf ("Select and option:\n"
 			"\tn - start new shift\n"
 			"\te - end current shift\n"
-			"\tq - quit");
+			"\tq - quit\n");
 
 	input = getchar ();
+	input_garbage = getchar ();
 
 	if (input == 'n' || input == 'N')
 	{
@@ -227,15 +259,20 @@ int main (void)
 	}
 	else if (input == 'e' || input == 'E')
 	{
-		if (curr_shift != 0)
+		if (curr_shift.id != 0)
 		{
 			end_shift (conn,
-					   curr_shift);
+					   curr_shift.id);
 		}
 		else
 		{
 			printf ("ERROR: Not currently clocked in\n");
 		}
+	}
+	else if (input == 'q' || input == 'Q')
+	{
+		printf ("Exiting\n");
+		return (0);
 	}
 
 	mysql_close (conn);
