@@ -19,6 +19,14 @@ struct work_shift {
 	char *comments;
 };
 
+struct project {
+	int id;
+	char *name;
+	char *start_date;
+	char *end_date;
+	char *comments;
+};
+
 void exit_with_error (MYSQL *conn)
 {
 	fprintf (stderr, "%s\n", mysql_error (conn));
@@ -50,13 +58,10 @@ struct work_shift find_curr_shift (MYSQL *conn)
 		.work_done = " ",
 		.comments = " "
 	};
-	char project[32];
 
 	char buff[256];
 
-	int i;
 	MYSQL_RES *result;
-	int num_fields;
 	MYSQL_ROW row;
 
 	snprintf (buff, 255, "SELECT id,start_time,employee,project, "
@@ -77,11 +82,8 @@ struct work_shift find_curr_shift (MYSQL *conn)
 	}
 	else
 	{
-		num_fields = mysql_num_fields (result);
-
 		while (row = mysql_fetch_row (result))
 		{
-			for (i = 0; i < num_fields; i++)
 			curr_shift.id = atoi (row[0]);
 			curr_shift.start_time = row[1];
 			curr_shift.employee = row[2];
@@ -93,6 +95,53 @@ struct work_shift find_curr_shift (MYSQL *conn)
 	}
 
 	return curr_shift;
+}
+
+struct project find_curr_project (MYSQL *conn,
+								  int proj_id)
+{
+	struct project curr_project = {
+		.id = proj_id,
+		.name = " ",
+		.start_date = "0000-00-00 00:00:00",
+		.end_date = "0000-00-00 00:00:00",
+		.comments = " "
+	};
+
+	char buff[256];
+
+	MYSQL_RES *result;
+	MYSQL_ROW row;
+
+	snprintf (buff, 255, "SELECT name,start_date,end_date,comments "
+						 "FROM projects WHERE id = %d LIMIT 1;",
+						 curr_project.id);
+
+	if (mysql_query (conn, buff))
+	{
+		exit_with_error (conn);
+	}
+
+	result = mysql_store_result (conn);
+
+	if (result == NULL)
+	{
+		return curr_project;
+	}
+	else
+	{
+		while (row = mysql_fetch_row (result))
+		{
+			curr_project.name = row[0];
+			curr_project.start_date = row[1];
+			curr_project.end_date = row[2];
+			curr_project.comments = row[3];
+		}
+
+		mysql_free_result (result);
+	}
+
+	return curr_project;
 }
 
 void start_shift (MYSQL *conn)
@@ -204,6 +253,7 @@ int main (void)
 	char *db;
 
 	struct work_shift curr_shift;
+	struct project curr_project;
 
 	char input;
 	char input_garbage;
@@ -241,11 +291,15 @@ int main (void)
 	}
 	else
 	{
-		printf ("Currently clocked in on job code %d\n",
-				curr_shift.project_code);
+		printf ("Currently working on %s\n", curr_shift.phase);
+		curr_project = find_curr_project (conn,
+										  curr_shift.project_code);
+		printf ("For project code %d: %s\n",
+				curr_shift.project_code,
+				curr_project.name);
 	}
 
-	printf ("Select and option:\n"
+	printf ("Select an option:\n"
 			"\tn - start new shift\n"
 			"\te - end current shift\n"
 			"\tq - quit\n");
